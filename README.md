@@ -11,3 +11,5 @@ Portfolio is unhedged.
 
 It must be implemented in both Python and R
 A short essay of 2-3 should describe data, methodology, results with interpretation and discussion
+
+# see also PROJECT_DETAILS.md
