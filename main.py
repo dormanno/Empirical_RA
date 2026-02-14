@@ -65,7 +65,10 @@ def main(use_live_data=False):
     # Display data summary
     print("Data Summary:")
     for asset, data in portfolio_data.items():
-        print(f"  {asset}: {len(data)} data points from {data.index[0].date()} to {data.index[-1].date()}")
+        if len(data) == 0:
+            print(f"  {asset}: No data available")
+        else:
+            print(f"  {asset}: {len(data)} data points from {data.index[0].date()} to {data.index[-1].date()}")
     print()
     print("=" * 70)
     print()

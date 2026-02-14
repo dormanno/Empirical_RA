@@ -141,6 +141,15 @@ class PortfolioRiskCalculator:
             mean_return = mean_return * 252
             std_return = std_return * np.sqrt(252)
         
+        # Handle edge case of zero or near-zero volatility
+        if std_return < 1e-10:
+            if mean_return > self.risk_free_rate:
+                return np.inf  # Infinite Sharpe ratio for positive returns with no volatility
+            elif mean_return < self.risk_free_rate:
+                return -np.inf  # Negative infinite for negative excess returns
+            else:
+                return 0.0  # Zero excess return with no volatility
+        
         sharpe = (mean_return - self.risk_free_rate) / std_return
         
         return sharpe

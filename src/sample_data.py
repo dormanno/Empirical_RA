@@ -23,6 +23,8 @@ class SampleDataGenerator:
         self.start_date = start_date or (self.end_date - timedelta(days=365))
         
         # Generate date range (trading days only)
+        # Note: Uses US trading calendar (excludes weekends and US holidays)
+        # For actual multi-market portfolios, consider market-specific calendars
         self.dates = pd.bdate_range(start=self.start_date, end=self.end_date)
     
     def generate_stock_prices(self, initial_price=30.0, mean_return=0.0003, 
