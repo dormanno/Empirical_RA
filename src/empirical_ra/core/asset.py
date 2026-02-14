@@ -33,18 +33,24 @@ class Asset:
         if data.empty:
             raise ValueError(f"No data returned for {self.ticker}")
 
-        self.prices = data["Close"].rename(self.name)
+        # Get Close prices and set the name directly
+        self.prices = data["Close"]
+        self.prices.name = self.name
+        
         if "Dividends" in data.columns:
-            self.dividends = data["Dividends"].rename(self.name)
+            self.dividends = data["Dividends"]
+            self.dividends.name = self.name
 
         # Convert currency when a FX ticker is provided.
         if self.fx_ticker:
             fx_data = yf.download(self.fx_ticker, start=start_date, end=end_date, auto_adjust=True)
             if fx_data.empty:
                 raise ValueError(f"No FX data returned for {self.fx_ticker}")
-            fx_rates = fx_data["Close"].rename("fx")
+            fx_rates = fx_data["Close"]
+            fx_rates.name = "fx"
             aligned = pd.concat([self.prices, fx_rates], axis=1, join="inner")
-            self.prices = (aligned[self.name] * aligned["fx"]).rename(self.name)
+            self.prices = (aligned[self.name] * aligned["fx"])
+            self.prices.name = self.name
 
     def adjust_for_dividends(self) -> pd.Series:
         """Return prices adjusted for dividends if available."""
@@ -68,7 +74,9 @@ class Asset:
             returns = series.resample("YE").last().pct_change()
         else:
             raise ValueError("Unsupported frequency")
-        return returns.dropna().rename(self.name)
+        returns = returns.dropna()
+        returns.name = self.name
+        return returns
 
     def validate_data(self) -> bool:
         """Check for missing values or empty series."""

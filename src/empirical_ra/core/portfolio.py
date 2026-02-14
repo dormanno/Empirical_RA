@@ -38,16 +38,34 @@ class Portfolio:
 
     def get_portfolio_prices(self) -> pd.Series:
         """Return the weighted portfolio price series."""
-        if not self.assets:
-            raise ValueError("No assets in portfolio")
-        prices = {name: asset.prices for name, asset in self.assets.items()}
-        self.prices_df = pd.DataFrame(prices).dropna()
+        if self.prices_df.empty:
+            # Build prices_df from assets if not already set
+            if not self.assets:
+                raise ValueError("No assets in portfolio")
+            prices = {name: asset.prices for name, asset in self.assets.items()}
+            self.prices_df = pd.DataFrame(prices).dropna()
+        
+        if self.prices_df.empty:
+            raise ValueError("No price data available")
+        
         if not self.weights:
             raise ValueError("Weights are not set")
+        
         aligned_weights = pd.Series(self.weights)
-        self.prices_df = self.prices_df[aligned_weights.index]
-        weighted = self.prices_df.mul(aligned_weights, axis=1).sum(axis=1)
-        return weighted.rename("portfolio")
+        # Select only columns that match the weights
+        available_cols = [col for col in self.prices_df.columns if col in aligned_weights.index]
+        if not available_cols:
+            raise ValueError("No matching assets between prices and weights")
+        
+        prices_aligned = self.prices_df[available_cols]
+        weights_aligned = aligned_weights[available_cols]
+        
+        # Normalize weights to sum to 1
+        weights_aligned = weights_aligned / weights_aligned.sum()
+        
+        weighted = prices_aligned.mul(weights_aligned, axis=1).sum(axis=1)
+        weighted.name = "portfolio"
+        return weighted
 
     def get_portfolio_returns(self, frequency: str = "daily") -> pd.Series:
         """Return portfolio returns at the requested frequency."""
