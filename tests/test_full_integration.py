@@ -161,8 +161,8 @@ class TestFullPortfolioAnalysis(unittest.TestCase):
         # STEP 9: GENERATE VISUALIZATIONS
         # ====================================================================
         print("\n[STEP 9] Generating visualizations...")
-        viz_files = self._generate_visualizations(portfolio, portfolio_returns, var_results)
-        self.assertEqual(len(viz_files), 6)  # 6 visualization types
+        viz_files = self._generate_visualizations(portfolio, portfolio_returns, var_results, cvar_results)
+        self.assertEqual(len(viz_files), 9)  # 9 visualization types
         for viz_name, viz_path in viz_files.items():
             self.assertTrue(Path(viz_path).exists(), f"Visualization not saved: {viz_path}")
             print(f"✓ {viz_name}: {viz_path}")
@@ -447,7 +447,13 @@ class TestFullPortfolioAnalysis(unittest.TestCase):
             "alpha": float(alpha) if alpha else 0.0,
         }
 
-    def _generate_visualizations(self, portfolio: Portfolio, portfolio_returns: pd.Series, var_results: dict) -> dict:
+    def _generate_visualizations(
+        self,
+        portfolio: Portfolio,
+        portfolio_returns: pd.Series,
+        var_results: dict,
+        cvar_results: dict,
+    ) -> dict:
         """Generate all required visualizations."""
         viz_files = {}
 
@@ -472,17 +478,40 @@ class TestFullPortfolioAnalysis(unittest.TestCase):
         rolling_vol = vol_analyzer.calculate_rolling_volatility(window=20)
         PortfolioVisualizer.plot_rolling_volatility(rolling_vol, viz_files["rolling_volatility"])
 
-        # 5. VaR timeseries
-        viz_files["var_timeseries"] = str(self.output_dir / "05_var_timeseries.png")
-        var_threshold = var_results["historical_var"]
+        # 5. VaR timeseries (historical)
+        viz_files["var_timeseries_historical"] = str(self.output_dir / "05_var_timeseries_historical.png")
         PortfolioVisualizer.plot_var_timeseries(
             portfolio_returns,
-            var_threshold,
-            viz_files["var_timeseries"]
+            var_results["historical_var"],
+            viz_files["var_timeseries_historical"]
         )
 
-        # 6. Beta scatter plot with regression line
-        viz_files["beta_scatter"] = str(self.output_dir / "06_beta_scatter_plot.png")
+        # 6. VaR timeseries (parametric)
+        viz_files["var_timeseries_parametric"] = str(self.output_dir / "06_var_timeseries_parametric.png")
+        PortfolioVisualizer.plot_var_timeseries(
+            portfolio_returns,
+            var_results["parametric_var"],
+            viz_files["var_timeseries_parametric"]
+        )
+
+        # 7. VaR timeseries (monte carlo)
+        viz_files["var_timeseries_monte_carlo"] = str(self.output_dir / "07_var_timeseries_monte_carlo.png")
+        PortfolioVisualizer.plot_var_timeseries(
+            portfolio_returns,
+            var_results["monte_carlo_var"],
+            viz_files["var_timeseries_monte_carlo"]
+        )
+
+        # 8. Expected Shortfall timeseries
+        viz_files["expected_shortfall_timeseries"] = str(self.output_dir / "08_expected_shortfall_timeseries.png")
+        PortfolioVisualizer.plot_cvar_timeseries(
+            portfolio_returns,
+            cvar_results["historical_cvar"],
+            viz_files["expected_shortfall_timeseries"]
+        )
+
+        # 9. Beta scatter plot with regression line
+        viz_files["beta_scatter"] = str(self.output_dir / "09_beta_scatter_plot.png")
         try:
             benchmark = Asset(
                 ticker="^MSCI",

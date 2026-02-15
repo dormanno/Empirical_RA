@@ -145,3 +145,34 @@ class PortfolioVisualizer:
             Path(save_path).parent.mkdir(parents=True, exist_ok=True)
             plt.savefig(save_path)
         plt.close()
+
+    @staticmethod
+    def plot_cvar_timeseries(
+        returns: pd.Series, cvar_value: float, save_path: Optional[str] = None
+    ) -> None:
+        """Plot returns time series with Expected Shortfall threshold highlighted."""
+        threshold = -abs(cvar_value)
+        clean_returns = returns.dropna()
+        tail = clean_returns[clean_returns <= threshold]
+        tail_ratio = (clean_returns < threshold).mean()
+        plt.figure(figsize=(12, 6))
+        plt.plot(returns.index, returns.values, label="Returns")
+        plt.axhline(threshold, color="orange", linestyle="--", label=f"ES ({threshold:.4f})")
+        plt.scatter(tail.index, tail.values, color="orange", marker="x", s=100, label="Tail Events")
+        plt.text(
+            0.01,
+            0.98,
+            f"Tail ratio: {tail_ratio:.2%}",
+            transform=plt.gca().transAxes,
+            va="top",
+            ha="left",
+        )
+        plt.xlabel("Date")
+        plt.ylabel("Return")
+        plt.title("Portfolio Returns with Expected Shortfall")
+        plt.legend()
+        plt.grid()
+        if save_path:
+            Path(save_path).parent.mkdir(parents=True, exist_ok=True)
+            plt.savefig(save_path)
+        plt.close()
