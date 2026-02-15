@@ -149,7 +149,7 @@ class TestFullPortfolioAnalysis(unittest.TestCase):
         performance_results = self._analyze_performance(
             portfolio_returns,
             portfolio.returns_df,
-            risk_free_rate=0.02
+            risk_free_rate=0.02/252  # Convert annual rate to daily
         )
         self.assertIn("sharpe_ratio", performance_results)
         self.assertIn("beta", performance_results)
