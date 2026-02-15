@@ -265,9 +265,12 @@ class TestFullPortfolioAnalysis(unittest.TestCase):
         for asset_name, asset in assets.items():
             try:
                 print(f"  Loading data for {asset_name}...")
+                max_abs_return = 0.05 if asset.asset_type == "currency" else None
                 asset.fetch_data(
                     start_date=start_date.strftime("%Y-%m-%d"),
-                    end_date=end_date.strftime("%Y-%m-%d")
+                    end_date=end_date.strftime("%Y-%m-%d"),
+                    max_abs_return=max_abs_return,
+                    outlier_strategy="ffill",
                 )
                 if not asset.prices.empty:
                     loaded_assets[asset_name] = asset

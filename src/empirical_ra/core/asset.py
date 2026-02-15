@@ -22,7 +22,13 @@ class Asset:
     prices: pd.Series = field(default_factory=pd.Series)
     dividends: pd.Series = field(default_factory=pd.Series)
 
-    def fetch_data(self, start_date: str, end_date: str) -> None:
+    def fetch_data(
+        self,
+        start_date: str,
+        end_date: str,
+        max_abs_return: Optional[float] = None,
+        outlier_strategy: str = "ffill",
+    ) -> None:
         """Fetch adjusted prices and dividends from Yahoo Finance."""
         try:
             import yfinance as yf
@@ -34,7 +40,13 @@ class Asset:
             raise ValueError(f"No data returned for {self.ticker}")
 
         # Get Close prices and set the name directly
-        self.prices = data["Close"]
+        prices = data["Close"]
+        if isinstance(prices, pd.DataFrame):
+            if prices.shape[1] == 1:
+                prices = prices.iloc[:, 0]
+            else:
+                raise ValueError(f"Multiple close columns returned for {self.ticker}")
+        self.prices = prices
         self.prices.name = self.name
         if getattr(self.prices.index, "tz", None) is not None:
             self.prices.index = self.prices.index.tz_localize(None)
@@ -58,6 +70,40 @@ class Asset:
             # Access columns by position since column names might not match exactly
             self.prices = (aligned.iloc[:, 0] * aligned.iloc[:, 1])
             self.prices.name = self.name
+
+        if max_abs_return is not None:
+            self.clean_price_outliers(max_abs_return, strategy=outlier_strategy)
+
+    def clean_price_outliers(self, max_abs_return: float, strategy: str = "ffill") -> int:
+        """Detect and clean extreme daily price moves.
+
+        Returns the number of outliers detected.
+        """
+        if self.prices.empty:
+            return 0
+
+        returns = self.prices.pct_change()
+        outliers = returns.abs() > max_abs_return
+        has_outliers = outliers.any() if not isinstance(outliers, pd.DataFrame) else outliers.any().any()
+        if not has_outliers:
+            return 0
+
+        cleaned = self.prices.copy()
+        if strategy == "ffill":
+            cleaned[outliers] = pd.NA
+            cleaned = cleaned.ffill()
+        elif strategy == "drop":
+            cleaned[outliers] = pd.NA
+            cleaned = cleaned.dropna()
+        elif strategy == "clip":
+            prev = self.prices.shift(1)
+            capped = prev * (1 + returns.clip(-max_abs_return, max_abs_return))
+            cleaned[outliers] = capped[outliers]
+        else:
+            raise ValueError("Unsupported outlier strategy")
+
+        self.prices = cleaned
+        return int(outliers.sum())
 
     def adjust_for_dividends(self) -> pd.Series:
         """Return prices adjusted for dividends if available."""
