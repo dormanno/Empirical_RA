@@ -1,0 +1,138 @@
+"""Asset data model and helpers."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import Optional
+
+import pandas as pd
+
+
+@dataclass
+class Asset:
+    """Represent a single asset and its price history."""
+
+    name: str
+    ticker: str
+    asset_type: str
+    base_currency: str
+    target_currency: str
+    description: str = ""
+    fx_ticker: Optional[str] = None
+    prices: pd.Series = field(default_factory=pd.Series)
+    dividends: pd.Series = field(default_factory=pd.Series)
+
+    def fetch_data(
+        self,
+        start_date: str,
+        end_date: str,
+        max_abs_return: Optional[float] = None,
+        outlier_strategy: str = "ffill",
+    ) -> None:
+        """Fetch adjusted prices and dividends from Yahoo Finance."""
+        try:
+            import yfinance as yf
+        except ImportError as exc:
+            raise ImportError("yfinance is required to fetch data") from exc
+
+        data = yf.download(self.ticker, start=start_date, end=end_date, auto_adjust=True)
+        if data.empty:
+            raise ValueError(f"No data returned for {self.ticker}")
+
+        # Get Close prices and set the name directly
+        prices = data["Close"]
+        if isinstance(prices, pd.DataFrame):
+            if prices.shape[1] == 1:
+                prices = prices.iloc[:, 0]
+            else:
+                raise ValueError(f"Multiple close columns returned for {self.ticker}")
+        self.prices = prices
+        self.prices.name = self.name
+        if getattr(self.prices.index, "tz", None) is not None:
+            self.prices.index = self.prices.index.tz_localize(None)
+        
+        if "Dividends" in data.columns:
+            self.dividends = data["Dividends"]
+            self.dividends.name = self.name
+
+        # Convert currency when a FX ticker is provided.
+        if self.fx_ticker:
+            fx_data = yf.download(self.fx_ticker, start=start_date, end=end_date, auto_adjust=True)
+            if fx_data.empty:
+                raise ValueError(f"No FX data returned for {self.fx_ticker}")
+            fx_rates = fx_data["Close"]
+            fx_rates.name = "fx"
+            if getattr(fx_rates.index, "tz", None) is not None:
+                fx_rates.index = fx_rates.index.tz_localize(None)
+            aligned = pd.concat([self.prices, fx_rates], axis=1, join="inner")
+            if aligned.empty:
+                raise ValueError(f"No overlapping dates between {self.ticker} and {self.fx_ticker}")
+            # Access columns by position since column names might not match exactly
+            self.prices = (aligned.iloc[:, 0] * aligned.iloc[:, 1])
+            self.prices.name = self.name
+
+        if max_abs_return is not None:
+            self.clean_price_outliers(max_abs_return, strategy=outlier_strategy)
+
+    def clean_price_outliers(self, max_abs_return: float, strategy: str = "ffill") -> int:
+        """Detect and clean extreme daily price moves.
+
+        Returns the number of outliers detected.
+        """
+        if self.prices.empty:
+            return 0
+
+        returns = self.prices.pct_change()
+        outliers = returns.abs() > max_abs_return
+        has_outliers = outliers.any() if not isinstance(outliers, pd.DataFrame) else outliers.any().any()
+        if not has_outliers:
+            return 0
+
+        cleaned = self.prices.copy()
+        if strategy == "ffill":
+            cleaned[outliers] = pd.NA
+            cleaned = cleaned.ffill()
+        elif strategy == "drop":
+            cleaned[outliers] = pd.NA
+            cleaned = cleaned.dropna()
+        elif strategy == "clip":
+            prev = self.prices.shift(1)
+            capped = prev * (1 + returns.clip(-max_abs_return, max_abs_return))
+            cleaned[outliers] = capped[outliers]
+        else:
+            raise ValueError("Unsupported outlier strategy")
+
+        self.prices = cleaned
+        return int(outliers.sum())
+
+    def adjust_for_dividends(self) -> pd.Series:
+        """Return prices adjusted for dividends if available."""
+        if self.prices.empty:
+            raise ValueError("Prices are not loaded")
+        if self.dividends.empty:
+            return self.prices
+        adjusted = self.prices + self.dividends.reindex(self.prices.index).fillna(0)
+        return adjusted.rename(self.name)
+
+    def calculate_returns(self, frequency: str = "daily") -> pd.Series:
+        """Calculate simple returns at the requested frequency."""
+        if self.prices.empty:
+            raise ValueError("Prices are not loaded")
+        series = self.prices
+        if frequency == "daily":
+            returns = series.pct_change()
+        elif frequency == "monthly":
+            returns = series.resample("ME").last().pct_change()
+        elif frequency == "yearly":
+            returns = series.resample("YE").last().pct_change()
+        else:
+            raise ValueError("Unsupported frequency")
+        returns = returns.dropna()
+        returns.name = self.name
+        return returns
+
+    def validate_data(self) -> bool:
+        """Check for missing values or empty series."""
+        if self.prices.empty:
+            return False
+        return not self.prices.isna().any()
