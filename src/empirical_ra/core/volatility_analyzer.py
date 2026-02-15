@@ -42,9 +42,11 @@ class VolatilityAnalyzer(Analyzer):
         return vars_
 
     def calculate_rolling_volatility(self, window: int) -> Dict[str, pd.Series]:
-        """Calculate rolling volatility per asset."""
+        """Calculate rolling volatility per asset and portfolio."""
         returns = self._prepare_returns_data()
         rolling = {col: returns[col].rolling(window).std() for col in returns.columns}
+        if self.portfolio_returns is not None:
+            rolling["portfolio"] = self.portfolio_returns.rolling(window).std()
         return rolling
 
     def calculate_downside_deviation(self, min_return: float = 0.0) -> Dict[str, float]:

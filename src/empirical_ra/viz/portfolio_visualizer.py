@@ -72,7 +72,10 @@ class PortfolioVisualizer:
         """Plot rolling volatility."""
         plt.figure(figsize=(12, 6))
         for asset, vol_series in rolling_vol.items():
-            plt.plot(vol_series.index, vol_series, label=asset)
+            if asset.lower() == "portfolio":
+                plt.plot(vol_series.index, vol_series, label=asset, linewidth=2.5, linestyle='--')
+            else:
+                plt.plot(vol_series.index, vol_series, label=asset)
         plt.xlabel("Date")
         plt.ylabel("Rolling Volatility")
         plt.title("Rolling Standard Deviation")

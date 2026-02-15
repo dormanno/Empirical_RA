@@ -73,14 +73,13 @@ class TestFullPortfolioAnalysis(unittest.TestCase):
                 returns = asset.calculate_returns(frequency="daily")
                 portfolio.returns_df[asset_name] = returns
         
-        # Calculate portfolio returns: weighted combination of prices
-        weights_series = pd.Series(portfolio.weights)
-        portfolio_prices = (portfolio.prices_df * weights_series).sum(axis=1)
-        portfolio_returns = portfolio_prices.pct_change().dropna()
-        portfolio_returns.name = "portfolio"
-        
         # Remove NaN values
         portfolio.returns_df = portfolio.returns_df.dropna()
+        
+        # Calculate portfolio returns: weighted sum of asset returns
+        weights_series = pd.Series(portfolio.weights)
+        portfolio_returns = (portfolio.returns_df * weights_series).sum(axis=1)
+        portfolio_returns.name = "portfolio"
         
         self.assertFalse(portfolio.returns_df.empty)
         self.assertFalse(portfolio_returns.empty)
@@ -102,7 +101,7 @@ class TestFullPortfolioAnalysis(unittest.TestCase):
         # STEP 4: VOLATILITY ANALYSIS
         # ====================================================================
         print("\n[STEP 4] Analyzing volatility...")
-        volatility_results = self._analyze_volatility(portfolio.returns_df)
+        volatility_results = self._analyze_volatility(portfolio.returns_df, portfolio_returns)
         self.assertIn("std_dev_daily", volatility_results)
         self.assertIn("std_dev_yearly", volatility_results)
         self.assertIn("rolling_volatility", volatility_results)
@@ -339,9 +338,9 @@ class TestFullPortfolioAnalysis(unittest.TestCase):
             "distribution_stats": analyzer.get_return_distribution_stats(),
         }
 
-    def _analyze_volatility(self, returns_df: pd.DataFrame) -> dict:
+    def _analyze_volatility(self, returns_df: pd.DataFrame, portfolio_returns: pd.Series = None) -> dict:
         """Analyze volatility at multiple time horizons."""
-        analyzer = VolatilityAnalyzer(returns_df=returns_df, frequency="daily")
+        analyzer = VolatilityAnalyzer(returns_df=returns_df, frequency="daily", portfolio_returns=portfolio_returns)
 
         std_dev_daily = analyzer.calculate_std_dev(frequency="daily")
         std_dev_monthly = analyzer.calculate_std_dev(frequency="monthly")
@@ -474,7 +473,7 @@ class TestFullPortfolioAnalysis(unittest.TestCase):
 
         # 4. Rolling volatility
         viz_files["rolling_volatility"] = str(self.output_dir / "04_rolling_volatility.png")
-        vol_analyzer = VolatilityAnalyzer(returns_df=portfolio.returns_df)
+        vol_analyzer = VolatilityAnalyzer(returns_df=portfolio.returns_df, portfolio_returns=portfolio_returns)
         rolling_vol = vol_analyzer.calculate_rolling_volatility(window=20)
         PortfolioVisualizer.plot_rolling_volatility(rolling_vol, viz_files["rolling_volatility"])
 
