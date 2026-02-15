@@ -120,12 +120,22 @@ class PortfolioVisualizer:
         returns: pd.Series, var_value: float, save_path: Optional[str] = None
     ) -> None:
         """Plot returns time series with VaR breaches highlighted."""
-        threshold = -var_value
-        breaches = returns[returns <= -threshold]
+        threshold = -abs(var_value)
+        clean_returns = returns.dropna()
+        breaches = clean_returns[clean_returns <= threshold]
+        breach_ratio = (clean_returns < threshold).mean()
         plt.figure(figsize=(12, 6))
         plt.plot(returns.index, returns.values, label="Returns")
-        plt.axhline(-threshold, color="red", linestyle="--", label=f"VaR ({-threshold:.4f})")
+        plt.axhline(threshold, color="red", linestyle="--", label=f"VaR ({threshold:.4f})")
         plt.scatter(breaches.index, breaches.values, color="red", marker="x", s=100, label="Breaches")
+        plt.text(
+            0.01,
+            0.98,
+            f"Breach ratio: {breach_ratio:.2%}",
+            transform=plt.gca().transAxes,
+            va="top",
+            ha="left",
+        )
         plt.xlabel("Date")
         plt.ylabel("Return")
         plt.title("Portfolio Returns with VaR")
