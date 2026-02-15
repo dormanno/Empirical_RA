@@ -24,7 +24,6 @@ from empirical_ra.viz.regression_visualizer import RegressionVisualizer
 from empirical_ra.report.report_generator import ReportGenerator
 from empirical_ra.report.essay_report_generator import EssayReportGenerator
 
-
 class TestFullPortfolioAnalysis(unittest.TestCase):
     """Complete end-to-end test for portfolio analysis pipeline."""
 
@@ -203,7 +202,7 @@ class TestFullPortfolioAnalysis(unittest.TestCase):
         print("ANALYSIS COMPLETE - SUMMARY")
         print("="*80)
         print(f"\n Portfolio Value: 100,000 PLN")
-        print(f" Asset Allocation: 50% Pfizer, 25% JPY/USD, 25% Gold")
+        print(f" Asset Allocation: 50% Pfizer, 25% JPY/PLN, 25% Gold")
         print(f" Time Period: 10 years (daily data)")
         print(f"\n Portfolio Returns:")
         print(f"  - Daily Mean: {return_results['mean_daily']:.6f}")
@@ -238,28 +237,31 @@ class TestFullPortfolioAnalysis(unittest.TestCase):
                 asset_type="stock",
                 base_currency="USD",
                 target_currency="PLN",
-                description="Pfizer Inc. stock"
+                description="Pfizer Inc. stock",
+                fx_ticker="USDPLN=X"
             ),
-            "JPY/USD": Asset(
-                ticker="JPYUSD=X",
-                name="JPY/USD",
+            "JPY/PLN": Asset(
+                ticker="JPYPLN=X",
+                name="JPY/PLN",
                 asset_type="currency",
                 base_currency="JPY",
-                target_currency="USD",
-                description="Japanese Yen to USD exchange rate"
+                target_currency="PLN",
+                description="Japanese Yen to PLN exchange rate"
             ),
             "Gold": Asset(
                 ticker="GC=F",
                 name="Gold",
                 asset_type="commodity",
                 base_currency="USD",
-                target_currency="USD",
-                description="Gold futures XAU/USD"
+                target_currency="PLN",
+                description="Gold futures XAU/USD",
+                fx_ticker="USDPLN=X"
             ),
         }
 
         # Fetch data for each asset
         loaded_assets = {}
+        load_errors = {}
         for asset_name, asset in assets.items():
             try:
                 print(f"  Loading data for {asset_name}...")
@@ -270,14 +272,24 @@ class TestFullPortfolioAnalysis(unittest.TestCase):
                 if not asset.prices.empty:
                     loaded_assets[asset_name] = asset
                     print(f"    ✓ {asset_name}: {len(asset.prices)} data points")
+                else:
+                    load_errors[asset_name] = "empty price series after fetch"
             except Exception as e:
+                load_errors[asset_name] = str(e)
                 print(f"  ✗ {asset_name}: {str(e)}")
 
         if not loaded_assets:
             raise ValueError("No asset data could be retrieved")
 
+        missing_assets = set(assets.keys()) - set(loaded_assets.keys())
+        if missing_assets:
+            print("  Missing assets:")
+            for asset_name in sorted(missing_assets):
+                reason = load_errors.get(asset_name, "unknown error")
+                print(f"    - {asset_name}: {reason}")
+
         # Create portfolio with filtered weights based on available assets
-        all_weights = {"Pfizer": 0.50, "JPY/USD": 0.25, "Gold": 0.25}
+        all_weights = {"Pfizer": 0.50, "JPY/PLN": 0.25, "Gold": 0.25}
         available_names = list(loaded_assets.keys())
         total_weight = sum(w for k, w in all_weights.items() if k in available_names)
         filtered_weights = {k: (w / total_weight) for k, w in all_weights.items() if k in available_names}
@@ -474,8 +486,9 @@ class TestFullPortfolioAnalysis(unittest.TestCase):
                 name="MSCI World",
                 asset_type="index",
                 base_currency="USD",
-                target_currency="USD",
-                description="MSCI World Index"
+                target_currency="PLN",
+                description="MSCI World Index",
+                fx_ticker="USDPLN=X"
             )
             end_date = portfolio.prices_df.index[-1]
             start_date = portfolio.prices_df.index[0]

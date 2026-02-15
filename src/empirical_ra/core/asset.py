@@ -36,6 +36,8 @@ class Asset:
         # Get Close prices and set the name directly
         self.prices = data["Close"]
         self.prices.name = self.name
+        if getattr(self.prices.index, "tz", None) is not None:
+            self.prices.index = self.prices.index.tz_localize(None)
         
         if "Dividends" in data.columns:
             self.dividends = data["Dividends"]
@@ -48,8 +50,13 @@ class Asset:
                 raise ValueError(f"No FX data returned for {self.fx_ticker}")
             fx_rates = fx_data["Close"]
             fx_rates.name = "fx"
+            if getattr(fx_rates.index, "tz", None) is not None:
+                fx_rates.index = fx_rates.index.tz_localize(None)
             aligned = pd.concat([self.prices, fx_rates], axis=1, join="inner")
-            self.prices = (aligned[self.name] * aligned["fx"])
+            if aligned.empty:
+                raise ValueError(f"No overlapping dates between {self.ticker} and {self.fx_ticker}")
+            # Access columns by position since column names might not match exactly
+            self.prices = (aligned.iloc[:, 0] * aligned.iloc[:, 1])
             self.prices.name = self.name
 
     def adjust_for_dividends(self) -> pd.Series:
