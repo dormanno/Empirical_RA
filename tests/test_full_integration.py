@@ -44,7 +44,11 @@ class TestFullPortfolioAnalysis(unittest.TestCase):
         
         # Clean up cached data
         if cls.data_dir.exists():
-            shutil.rmtree(cls.data_dir)
+            try:
+                shutil.rmtree(cls.data_dir)
+            except PermissionError:
+                # On Windows, files may be locked; silently ignore
+                pass
 
     def test_complete_portfolio_workflow(self):
         """Run complete portfolio analysis workflow: data -> analysis -> reports."""
@@ -59,8 +63,8 @@ class TestFullPortfolioAnalysis(unittest.TestCase):
         portfolio = self._create_and_load_portfolio()
         self.assertIsNotNone(portfolio)
         self.assertFalse(portfolio.prices_df.empty)
-        print(f"✓ Portfolio created with {len(portfolio.assets)} assets")
-        print(f"✓ Data loaded: {portfolio.prices_df.shape[0]} dates, {portfolio.prices_df.shape[1]} assets")
+        print(f"[OK] Portfolio created with {len(portfolio.assets)} assets")
+        print(f"[OK] Data loaded: {portfolio.prices_df.shape[0]} dates, {portfolio.prices_df.shape[1]} assets")
 
         # ====================================================================
         # STEP 2: CALCULATE RETURNS
@@ -83,8 +87,8 @@ class TestFullPortfolioAnalysis(unittest.TestCase):
         
         self.assertFalse(portfolio.returns_df.empty)
         self.assertFalse(portfolio_returns.empty)
-        print(f"✓ Returns calculated: {portfolio.returns_df.shape}")
-        print(f"✓ Portfolio returns calculated: {portfolio_returns.shape}")
+        print(f"[OK] Returns calculated: {portfolio.returns_df.shape}")
+        print(f"[OK] Portfolio returns calculated: {portfolio_returns.shape}")
 
         # ====================================================================
         # STEP 3: RETURN ANALYSIS
@@ -94,8 +98,8 @@ class TestFullPortfolioAnalysis(unittest.TestCase):
         self.assertIn("mean_daily", return_results)
         self.assertIn("mean_monthly", return_results)
         self.assertIn("mean_yearly", return_results)
-        print(f"✓ Mean daily returns: {return_results['mean_daily']}")
-        print(f"✓ Mean yearly returns: {return_results['mean_yearly']}")
+        print(f"[OK] Mean daily returns: {return_results['mean_daily']}")
+        print(f"[OK] Mean yearly returns: {return_results['mean_yearly']}")
 
         # ====================================================================
         # STEP 4: VOLATILITY ANALYSIS
@@ -105,8 +109,8 @@ class TestFullPortfolioAnalysis(unittest.TestCase):
         self.assertIn("std_dev_daily", volatility_results)
         self.assertIn("std_dev_yearly", volatility_results)
         self.assertIn("rolling_volatility", volatility_results)
-        print(f"✓ Std dev daily: {volatility_results['std_dev_daily']}")
-        print(f"✓ Std dev yearly: {volatility_results['std_dev_yearly']}")
+        print(f"[OK] Std dev daily: {volatility_results['std_dev_daily']}")
+        print(f"[OK] Std dev yearly: {volatility_results['std_dev_yearly']}")
 
         # ====================================================================
         # STEP 5: CORRELATION ANALYSIS
@@ -115,8 +119,8 @@ class TestFullPortfolioAnalysis(unittest.TestCase):
         correlation_results = self._analyze_correlation(portfolio.returns_df)
         self.assertIn("correlation_matrix", correlation_results)
         self.assertIn("covariance_matrix", correlation_results)
-        print(f"✓ Correlation matrix shape: {correlation_results['correlation_matrix'].shape}")
-        print(f"✓ Covariance matrix shape: {correlation_results['covariance_matrix'].shape}")
+        print(f"[OK] Correlation matrix shape: {correlation_results['correlation_matrix'].shape}")
+        print(f"[OK] Covariance matrix shape: {correlation_results['covariance_matrix'].shape}")
 
         # ====================================================================
         # STEP 6: VALUE AT RISK ANALYSIS (All 3 Methods)
@@ -126,9 +130,9 @@ class TestFullPortfolioAnalysis(unittest.TestCase):
         self.assertIn("historical_var", var_results)
         self.assertIn("parametric_var", var_results)
         self.assertIn("monte_carlo_var", var_results)
-        print(f"✓ Historical VaR: {var_results['historical_var']:.4f}")
-        print(f"✓ Parametric VaR: {var_results['parametric_var']:.4f}")
-        print(f"✓ Monte Carlo VaR: {var_results['monte_carlo_var']:.4f}")
+        print(f"[OK] Historical VaR: {var_results['historical_var']:.4f}")
+        print(f"[OK] Parametric VaR: {var_results['parametric_var']:.4f}")
+        print(f"[OK] Monte Carlo VaR: {var_results['monte_carlo_var']:.4f}")
 
         # ====================================================================
         # STEP 7: CONDITIONAL VALUE AT RISK (CVaR / Expected Shortfall)
@@ -138,9 +142,9 @@ class TestFullPortfolioAnalysis(unittest.TestCase):
         self.assertIn("historical_cvar", cvar_results)
         self.assertIn("parametric_cvar", cvar_results)
         self.assertIn("monte_carlo_cvar", cvar_results)
-        print(f"✓ Historical CVaR: {cvar_results['historical_cvar']:.4f}")
-        print(f"✓ Parametric CVaR: {cvar_results['parametric_cvar']:.4f}")
-        print(f"✓ Monte Carlo CVaR: {cvar_results['monte_carlo_cvar']:.4f}")
+        print(f"[OK] Historical CVaR: {cvar_results['historical_cvar']:.4f}")
+        print(f"[OK] Parametric CVaR: {cvar_results['parametric_cvar']:.4f}")
+        print(f"[OK] Monte Carlo CVaR: {cvar_results['monte_carlo_cvar']:.4f}")
 
         # ====================================================================
         # STEP 8: PERFORMANCE ANALYSIS (Sharpe Ratio, Beta)
@@ -153,8 +157,8 @@ class TestFullPortfolioAnalysis(unittest.TestCase):
         )
         self.assertIn("sharpe_ratio", performance_results)
         self.assertIn("beta", performance_results)
-        print(f"✓ Sharpe Ratio: {performance_results['sharpe_ratio']:.4f}")
-        print(f"✓ Beta (vs MSCI World): {performance_results['beta']:.4f}")
+        print(f"[OK] Sharpe Ratio: {performance_results['sharpe_ratio']:.4f}")
+        print(f"[OK] Beta (vs MSCI World): {performance_results['beta']:.4f}")
 
         # ====================================================================
         # STEP 9: GENERATE VISUALIZATIONS
@@ -164,7 +168,7 @@ class TestFullPortfolioAnalysis(unittest.TestCase):
         self.assertEqual(len(viz_files), 9)  # 9 visualization types
         for viz_name, viz_path in viz_files.items():
             self.assertTrue(Path(viz_path).exists(), f"Visualization not saved: {viz_path}")
-            print(f"✓ {viz_name}: {viz_path}")
+            print(f"[OK] {viz_name}: {viz_path}")
 
         # ====================================================================
         # STEP 10: EXPORT RESULTS TO CSV
@@ -176,7 +180,7 @@ class TestFullPortfolioAnalysis(unittest.TestCase):
         )
         for csv_name, csv_path in csv_files.items():
             self.assertTrue(Path(csv_path).exists(), f"CSV not saved: {csv_path}")
-            print(f"✓ {csv_name}: {csv_path}")
+            print(f"[OK] {csv_name}: {csv_path}")
 
         # ====================================================================
         # STEP 11: GENERATE ESSAY REPORT (PDF)
@@ -187,10 +191,10 @@ class TestFullPortfolioAnalysis(unittest.TestCase):
             self._generate_essay_report(
                 portfolio, portfolio_returns, return_results, volatility_results,
                 correlation_results, var_results, cvar_results,
-                performance_results, essay_path
+                performance_results, essay_path, viz_files
             )
             # Note: PDF generation may require reportlab or similar
-            print(f"✓ Essay report path: {essay_path}")
+            print(f"[OK] Essay report path: {essay_path}")
         except Exception as e:
             print(f"⚠ Essay report generation skipped: {str(e)}")
 
@@ -273,12 +277,12 @@ class TestFullPortfolioAnalysis(unittest.TestCase):
                 )
                 if not asset.prices.empty:
                     loaded_assets[asset_name] = asset
-                    print(f"    ✓ {asset_name}: {len(asset.prices)} data points")
+                    print(f"    [OK] {asset_name}: {len(asset.prices)} data points")
                 else:
                     load_errors[asset_name] = "empty price series after fetch"
             except Exception as e:
                 load_errors[asset_name] = str(e)
-                print(f"  ✗ {asset_name}: {str(e)}")
+                print(f"  [FAIL] {asset_name}: {str(e)}")
 
         if not loaded_assets:
             raise ValueError("No asset data could be retrieved")
@@ -646,7 +650,8 @@ class TestFullPortfolioAnalysis(unittest.TestCase):
         var_results: dict,
         cvar_results: dict,
         performance_results: dict,
-        output_path: str
+        output_path: str,
+        viz_files: dict = None
     ) -> None:
         """Generate comprehensive essay report (PDF)."""
         essay_generator = EssayReportGenerator(output_dir=str(self.output_dir))
@@ -668,7 +673,7 @@ class TestFullPortfolioAnalysis(unittest.TestCase):
         }
 
         try:
-            essay_generator.generate_pdf(output_path, analysis_data)
+            essay_generator.generate_pdf(output_path, analysis_data, viz_files)
         except Exception as e:
             # If PDF generation fails, just create a text summary
             summary_path = output_path.replace(".pdf", ".txt")

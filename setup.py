@@ -18,6 +18,7 @@ setup(
         "seaborn>=0.11.0",
         "yfinance>=0.1.70",
         "pyyaml>=5.4.0",
+        "reportlab>=4.0.0",
     ],
     extras_require={
         "dev": ["pytest>=6.0", "pytest-cov>=2.12.0"],
