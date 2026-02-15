@@ -514,12 +514,12 @@ class TestFullPortfolioAnalysis(unittest.TestCase):
         viz_files["beta_scatter"] = str(self.output_dir / "09_beta_scatter_plot.png")
         try:
             benchmark = Asset(
-                ticker="^MSCI",
-                name="MSCI World",
-                asset_type="index",
+                ticker="URTH",
+                name="MSCI World ETF",
+                asset_type="etf",
                 base_currency="USD",
                 target_currency="PLN",
-                description="MSCI World Index",
+                description="iShares MSCI World ETF",
                 fx_ticker="USDPLN=X"
             )
             end_date = portfolio.prices_df.index[-1]
